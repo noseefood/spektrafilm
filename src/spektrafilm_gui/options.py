@@ -13,6 +13,11 @@ class RGBColorSpaces(Enum):
     ACES2065_1 = "ACES2065-1"
 
 
+class SaveImageFormat(Enum):
+    JPG = "jpg"
+    PNG = "png"
+
+
 class RGBtoRAWMethod(Enum):
     hanatos2025 = "hanatos2025"
     mallett2019 = "mallett2019"

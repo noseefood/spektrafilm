@@ -23,12 +23,25 @@ def test_gui_state_round_trip_preserves_tuple_fields() -> None:
     state.grain.particle_scale = (1.1, 1.2, 1.3)
     state.gui_only.display.gray_18_canvas = True
     state.gui_only.display.white_padding = 0.18
+    state.simulation.workflow.save_white_border = False
+    state.simulation.workflow.save_format = 'png'
 
     restored = gui_state_from_dict(gui_state_to_dict(state))
 
     assert restored == state
     assert isinstance(restored.input_image.io.crop_size, tuple)
     assert isinstance(restored.grain.particle_scale, tuple)
+
+
+def test_old_gui_state_uses_new_save_defaults() -> None:
+    data = gui_state_to_dict(PROJECT_DEFAULT_GUI_STATE)
+    del data['simulation']['save_white_border']
+    del data['simulation']['save_format']
+
+    restored = gui_state_from_dict(data)
+
+    assert restored.simulation.workflow.save_white_border is True
+    assert restored.simulation.workflow.save_format == 'jpg'
 
 
 def test_save_and_load_gui_state_file(tmp_path: Path) -> None:

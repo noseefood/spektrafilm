@@ -76,6 +76,21 @@ def test_write_metadata_carries_source_tags_and_sets_overrides(tmp_path, monkeyp
     assert exif["Exif.Photo.PixelYDimension"] == "12"
 
 
+def test_write_metadata_omits_dng_private_data_from_png(tmp_path):
+    source_metadata = _build_source_metadata()
+    source_metadata.exif["Exif.Image.DNGPrivateData"] = "1 2 3"
+    destination_path = tmp_path / "dst.png"
+    save_image_oiio(str(destination_path), np.full((4, 6, 3), 0.5))
+
+    write_image_metadata(str(destination_path), source_metadata)
+
+    copied = read_image_metadata(str(destination_path))
+    copied_keys = _read_tags(copied.exif)
+    assert "Exif.Image.DNGPrivateData" not in copied_keys
+    assert copied_keys["Exif.Image.Make"] == "Canon"
+    assert "Exif.Image.DNGPrivateData" in source_metadata.exif
+
+
 def test_save_without_metadata_has_no_exif(tmp_path):
     destination_path = tmp_path / "plain.jpg"
 

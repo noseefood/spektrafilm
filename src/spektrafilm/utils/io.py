@@ -102,6 +102,10 @@ def write_image_metadata(
         destination.setXmpData(source_metadata.xmp)
 
     destination_exif = destination.exifData()
+    # DNG private data cannot be encoded in JPEG/PNG EXIF. Exiv2 otherwise
+    # emits a warning when copying it from a RAW source.
+    if "Exif.Image.DNGPrivateData" in destination_exif:
+        del destination_exif["Exif.Image.DNGPrivateData"]
 
     destination_exif["Exif.Image.Orientation"] = 1
     destination_exif["Exif.Image.DateTime"] = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")

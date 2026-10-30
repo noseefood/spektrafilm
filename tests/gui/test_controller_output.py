@@ -40,6 +40,7 @@ def _make_output_layer(
 
 def _configure_save_output(monkeypatch, controller: GuiController, output_layer: FakeLayer, gui_state, captured: dict[str, object]) -> None:
     monkeypatch.setattr(controller, '_output_layer', lambda: output_layer)
+    controller._last_output_mode = 'Scan'
     monkeypatch.setattr(controller_module, 'dialog_parent', lambda viewer: None)
     monkeypatch.setattr(controller_module, 'set_status', lambda viewer, message: captured.setdefault('status', message))
     monkeypatch.setattr(controller_module, 'load_dialog_dir', lambda key: '')
@@ -246,6 +247,84 @@ def test_save_output_layer_respects_recorded_render_metadata(
     saved_kwargs = captured['saved_kwargs']
     assert saved_kwargs['color_space'] == saving_color_space
     assert saved_kwargs['cctf_encoding'] is saving_cctf_encoding
+
+
+@pytest.mark.parametrize('save_format', ['jpg', 'png'])
+@pytest.mark.parametrize('save_white_border', [False, True])
+def test_save_output_uses_selected_format_and_optional_white_border(
+    monkeypatch, save_format: str, save_white_border: bool,
+) -> None:
+    float_image = np.full((10, 20, 3), 0.5, dtype=np.float32)
+    output_layer = _make_output_layer(
+        float_image, output_color_space='sRGB', output_cctf_encoding=True,
+    )
+    controller = GuiController(viewer=object(), widgets=object())
+    gui_state = make_test_controller_gui_state()
+    gui_state.simulation.io.output_color_space = 'sRGB'
+    gui_state.simulation.workflow.saving_color_space = 'sRGB'
+    gui_state.simulation.workflow.saving_cctf_encoding = True
+    gui_state.simulation.workflow.save_format = save_format
+    gui_state.simulation.workflow.save_white_border = save_white_border
+    gui_state.gui_only.display.white_padding = 0.1
+    captured: dict[str, object] = {}
+    _configure_save_output(monkeypatch, controller, output_layer, gui_state, captured)
+    monkeypatch.setattr(
+        controller_module.QFileDialog, 'getSaveFileName',
+        staticmethod(lambda _parent, _title, initial, _filter: (initial, _filter)),
+    )
+    _capture_saved_output(monkeypatch, captured)
+
+    controller.save_output_layer()
+
+    saved_path, saved_image = captured['saved']
+    assert saved_path == f'output.{save_format}'
+    if save_white_border:
+        assert saved_image.shape == (14, 24, 3)
+        np.testing.assert_array_equal(saved_image[0], 1.0)
+        np.testing.assert_array_equal(saved_image[2:-2, 2:-2], float_image)
+    else:
+        np.testing.assert_array_equal(saved_image, float_image)
+
+
+def test_save_after_preview_starts_full_scan_before_opening_dialog(monkeypatch) -> None:
+    controller = GuiController(viewer=object(), widgets=object())
+    controller._current_input_image = np.zeros((40, 60, 3), dtype=np.uint8)
+    controller._last_output_mode = 'Preview'
+    monkeypatch.setattr(controller, '_output_layer', lambda: FakeLayer())
+    scans: list[bool] = []
+    monkeypatch.setattr(controller, 'run_scan', lambda: scans.append(True))
+    monkeypatch.setattr(
+        controller_module.QFileDialog, 'getSaveFileName',
+        staticmethod(lambda *_args: (_ for _ in ()).throw(AssertionError('save dialog opened before scan'))),
+    )
+
+    controller.save_output_layer()
+
+    assert scans == [True]
+    assert controller._save_after_scan is True
+
+
+def test_scan_completion_continues_pending_save(monkeypatch) -> None:
+    controller = GuiController(viewer=object(), widgets=SimpleNamespace(
+        simulation=SimpleNamespace(preview_button=None, scan_button=None, save_button=None),
+    ))
+    controller._save_after_scan = True
+    saved: list[str | None] = []
+    monkeypatch.setattr(controller, '_set_or_add_output_layer', lambda image, **kwargs: None)
+    monkeypatch.setattr(controller, 'save_output_layer', lambda: saved.append(controller._last_output_mode))
+    monkeypatch.setattr(controller_module, 'set_status', lambda *_args, **_kwargs: None)
+
+    controller._on_simulation_finished(controller_module.SimulationResult(
+        mode_label='Scan',
+        display_image=np.zeros((4, 6, 3), dtype=np.uint8),
+        float_image=np.zeros((4, 6, 3), dtype=np.float32),
+        output_color_space='sRGB',
+        use_display_transform=False,
+        status_message='Display transform: disabled',
+    ))
+
+    assert saved == ['Scan']
+    assert controller._save_after_scan is False
 
 
 @pytest.mark.parametrize(

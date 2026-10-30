@@ -40,6 +40,7 @@ from spektrafilm_gui.options import (
     OutputGamutCompressAlgorithms,
     RGBColorSpaces,
     RGBtoRAWMethod,
+    SaveImageFormat,
 )
 
 
@@ -834,6 +835,8 @@ SIMULATION_OUTPUT_PANEL_FIELDS = (
     ParamSpec("io.output_color_space", label="Output color space", tooltip="Output color space of the simulation", enum=RGBColorSpaces),
     ParamSpec("workflow.saving_color_space", label="Saving color space", tooltip="Color space of the saved image file", enum=RGBColorSpaces),
     ParamSpec("workflow.saving_cctf_encoding", label="Saving CCTF encoding", tooltip="Add or not the CCTF to the saved image file"),
+    ParamSpec("workflow.save_white_border", label="Save white border", tooltip="Include the visible white frame when saving; width follows Display > White padding."),
+    ParamSpec("workflow.save_format", label="Save format", tooltip="Default image format when saving; the file extension in the save dialog can override it.", enum=SaveImageFormat),
 )
 
 SIMULATION_FOOTER_FIELDS = (

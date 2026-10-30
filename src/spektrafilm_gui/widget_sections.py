@@ -672,7 +672,7 @@ class DisplaySection(QWidget):
 
 class SimulationSection(QWidget):
     _is_params_group = True
-    _skip_auto_preview_leaves = {'auto_preview', 'scan_film'}
+    _skip_auto_preview_leaves = {'auto_preview', 'scan_film', 'save_white_border', 'save_format'}
     preview_requested = Signal()
     scan_requested = Signal()
     save_requested = Signal()

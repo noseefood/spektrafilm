@@ -364,6 +364,8 @@ def test_numeric_field_specs_define_minimum_and_step() -> None:
         'output_color_space': str,
         'saving_color_space': str,
         'saving_cctf_encoding': bool,
+        'save_white_border': bool,
+        'save_format': str,
         'auto_preview': bool,
         'scan_film': bool,
     }

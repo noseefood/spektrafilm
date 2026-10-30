@@ -67,6 +67,8 @@ class SimulationWorkflowState:
     saving_color_space: str
     saving_cctf_encoding: bool
     auto_preview: bool
+    save_white_border: bool = True
+    save_format: str = 'jpg'
 
 
 @dataclass(slots=True)
@@ -164,6 +166,8 @@ def normalize_simulation_dict(data: dict[str, Any]) -> dict[str, Any]:
             'saving_color_space': data.get('saving_color_space', PROJECT_DEFAULT_GUI_STATE.simulation.workflow.saving_color_space),
             'saving_cctf_encoding': data.get('saving_cctf_encoding', PROJECT_DEFAULT_GUI_STATE.simulation.workflow.saving_cctf_encoding),
             'auto_preview': data.get('auto_preview', PROJECT_DEFAULT_GUI_STATE.simulation.workflow.auto_preview),
+            'save_white_border': data.get('save_white_border', PROJECT_DEFAULT_GUI_STATE.simulation.workflow.save_white_border),
+            'save_format': data.get('save_format', PROJECT_DEFAULT_GUI_STATE.simulation.workflow.save_format),
         },
     }
 
@@ -317,6 +321,8 @@ def gui_state_from_params(
                 saving_color_space="sRGB",
                 saving_cctf_encoding=params.io.output_cctf_encoding,
                 auto_preview=True,
+                save_white_border=True,
+                save_format='jpg',
             ),
         ),
         gui_only=GuiOnlyState(

@@ -156,6 +156,8 @@ class GuiController:
         self._auto_preview_scheduled = False
         self._pending_auto_preview = False
         self._active_simulation_reports_status = True
+        self._last_output_mode: str | None = None
+        self._save_after_scan = False
 
     def show_startup_placeholder(self) -> None:
         if self._white_border_layer() is not None:
@@ -320,14 +322,24 @@ class GuiController:
 
     def save_output_layer(self) -> None:
         output_layer = self._output_layer()
-        if output_layer is None:
-            QMessageBox.warning(dialog_parent(self._viewer), 'Save output', 'Run a simulation before saving the output layer.')
+        if output_layer is None and self._current_input_image is None:
+            QMessageBox.warning(dialog_parent(self._viewer), 'Save output', 'Load an input image before saving.')
+            return
+        if output_layer is None or self._last_output_mode != 'Scan':
+            if self._active_simulation_worker is not None:
+                return
+            self._save_after_scan = True
+            self.run_scan()
             return
 
+        gui_state = collect_gui_state(widgets=self._widgets)
+        save_format = gui_state.simulation.workflow.save_format
+        if save_format not in {'jpg', 'png'}:
+            save_format = 'jpg'
         if self._current_input_path is not None:
-            default_name = Path(self._current_input_path).stem + '.jpg'
+            default_name = Path(self._current_input_path).stem + f'.{save_format}'
         else:
-            default_name = 'output.jpg'
+            default_name = f'output.{save_format}'
 
         filepath, _ = _DirMemoryDialog('save_output').get_save_file_name(
             dialog_parent(self._viewer),
@@ -338,7 +350,6 @@ class GuiController:
         if not filepath:
             return
 
-        gui_state = collect_gui_state(widgets=self._widgets)
         float_image_data = self._output_layer_float_data()
         if float_image_data is None:
             image_data = runtime.normalized_image_data(np.asarray(output_layer.data)[..., :3])
@@ -367,6 +378,10 @@ class GuiController:
                 apply_cctf_decoding=source_cctf_encoding,
                 apply_cctf_encoding=saving_cctf_encoding,
             )
+
+        if gui_state.simulation.workflow.save_white_border:
+            padding = runtime.padding_pixels_for_image(image_data, gui_state.gui_only.display.white_padding)
+            image_data = runtime.apply_white_padding(image_data, padding)
 
         source_metadata = None
 
@@ -736,11 +751,16 @@ class GuiController:
             output_cctf_encoding=True,
             use_display_transform=result.use_display_transform,
         )
+        self._last_output_mode = result.mode_label
         if report_status:
             set_status(self._viewer, f'{result.mode_label} completed. {result.status_message}')
+        if self._save_after_scan and result.mode_label == 'Scan':
+            self._save_after_scan = False
+            self.save_output_layer()
         self._replay_pending_auto_preview()
 
     def _on_simulation_failed(self, message: str) -> None:
+        self._save_after_scan = False
         self._active_simulation_worker = None
         mode_label = self._active_simulation_label or 'Simulation'
         self._active_simulation_label = None
@@ -787,4 +807,5 @@ class GuiController:
             output_cctf_encoding=True,
             use_display_transform=state.gui_only.display.use_display_transform,
         )
+        self._last_output_mode = 'Preview' if source_layer_name == INPUT_PREVIEW_LAYER_NAME else 'Scan'
         set_status(self._viewer, display_status)
